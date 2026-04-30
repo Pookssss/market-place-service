@@ -5,8 +5,9 @@ const upload = require('../middleware/upload');
 const { verifyToken } = require('../middlewares/authMiddleware');
 const { requireRole, requirePermission } = require('../middlewares/permissionMiddleware');
 
-// Public routes (anyone can see active products)
+// Public routes
 router.get('/', productController.getAllProducts);
+router.get('/search', productController.searchProducts);
 router.get('/:id', productController.getProductById);
 
 // Seller / Admin routes

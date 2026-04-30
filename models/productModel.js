@@ -79,6 +79,138 @@ const Product = {
         return await getProductsWithExtras(rows);
     },
 
+    // ค้นหา + กรอง + เรียงลำดับ + แบ่งหน้า
+    search: async (filters = {}) => {
+        const {
+            q,              // keyword search
+            category_id,    // internal category id (ถูกแปลงจาก UUID แล้ว)
+            category_path,  // path ของ category (สำหรับดึงลูกหลาน)
+            min_price,
+            max_price,
+            store_id,       // internal store id (ถูกแปลงจาก UUID แล้ว)
+            attributes,     // { attributeInternalId: value, ... }
+            sort = 'newest',
+            page = 1,
+            limit = 20
+        } = filters;
+
+        // Sanitize pagination
+        const safePage = Math.max(1, parseInt(page) || 1);
+        const safeLimit = Math.min(100, Math.max(1, parseInt(limit) || 20));
+        const offset = (safePage - 1) * safeLimit;
+
+        // Build WHERE clauses
+        const conditions = ['p.status = ?'];
+        const params = ['active'];
+
+        // Keyword search — ลอง FULLTEXT ก่อน, ถ้า table ไม่มี index จะ fallback เป็น LIKE
+        let useFullText = false;
+        if (q && q.trim()) {
+            const keyword = q.trim();
+            try {
+                // ทดสอบว่ามี FULLTEXT index หรือไม่
+                await db.query('SELECT 1 FROM products WHERE MATCH(name, description) AGAINST(? IN BOOLEAN MODE) LIMIT 1', [`${keyword}*`]);
+                conditions.push('MATCH(p.name, p.description) AGAINST(? IN BOOLEAN MODE)');
+                params.push(`${keyword}*`);
+                useFullText = true;
+            } catch (e) {
+                // Fallback เป็น LIKE
+                conditions.push('(p.name LIKE ? OR p.description LIKE ?)');
+                params.push(`%${keyword}%`, `%${keyword}%`);
+            }
+        }
+
+        // Category filter — ใช้ path LIKE เพื่อรวมลูกหลานทั้งหมด
+        if (category_path) {
+            const [catIds] = await db.query(
+                'SELECT id FROM product_categories WHERE path LIKE ? OR id = ?',
+                [`${category_path}%`, category_id]
+            );
+            if (catIds.length > 0) {
+                const ids = catIds.map(c => c.id);
+                conditions.push(`p.category_id IN (${ids.map(() => '?').join(',')})`);
+                params.push(...ids);
+            }
+        } else if (category_id) {
+            conditions.push('p.category_id = ?');
+            params.push(category_id);
+        }
+
+        // Price range
+        if (min_price !== undefined && min_price !== null && min_price !== '') {
+            conditions.push('p.price >= ?');
+            params.push(parseFloat(min_price));
+        }
+        if (max_price !== undefined && max_price !== null && max_price !== '') {
+            conditions.push('p.price <= ?');
+            params.push(parseFloat(max_price));
+        }
+
+        // Store filter
+        if (store_id) {
+            conditions.push('p.store_id = ?');
+            params.push(store_id);
+        }
+
+        // Attribute filter — JOIN product_attribute_values สำหรับแต่ละ attribute
+        let attrJoins = '';
+        let attrIndex = 0;
+        if (attributes && Object.keys(attributes).length > 0) {
+            for (const [attrId, attrValue] of Object.entries(attributes)) {
+                const alias = `pav${attrIndex}`;
+                attrJoins += ` INNER JOIN product_attribute_values ${alias} ON p.id = ${alias}.product_id AND ${alias}.attribute_id = ? AND ${alias}.value = ?`;
+                params.push(parseInt(attrId), attrValue);
+                attrIndex++;
+            }
+        }
+
+        // Sorting
+        let orderBy;
+        switch (sort) {
+            case 'price_asc': orderBy = 'p.price ASC'; break;
+            case 'price_desc': orderBy = 'p.price DESC'; break;
+            case 'name_asc': orderBy = 'p.name ASC'; break;
+            case 'name_desc': orderBy = 'p.name DESC'; break;
+            case 'oldest': orderBy = 'p.id ASC'; break;
+            case 'newest':
+            default: orderBy = 'p.id DESC'; break;
+        }
+
+        const whereClause = conditions.join(' AND ');
+
+        // Count total (สำหรับ pagination)
+        const countSql = `SELECT COUNT(DISTINCT p.id) as total FROM products p${attrJoins} WHERE ${whereClause}`;
+        // ต้อง clone params เพราะ attrJoins params อยู่ตรงกลาง
+        // สร้าง params ใหม่สำหรับ count query
+        const countParams = [...params];
+
+        const [countResult] = await db.query(countSql, countParams);
+        const total = countResult[0].total;
+
+        // Fetch products
+        const dataSql = `SELECT DISTINCT p.* FROM products p${attrJoins} WHERE ${whereClause} ORDER BY ${orderBy} LIMIT ? OFFSET ?`;
+        const dataParams = [...params, safeLimit, offset];
+
+        const [rows] = await db.query(dataSql, dataParams);
+
+        // Attach extras (variants, images, category, attributes)
+        const products = await getProductsWithExtras(rows);
+
+        const totalPages = Math.ceil(total / safeLimit);
+
+        return {
+            products,
+            pagination: {
+                page: safePage,
+                limit: safeLimit,
+                total,
+                total_pages: totalPages,
+                has_next: safePage < totalPages,
+                has_prev: safePage > 1
+            }
+        };
+    },
+
     getAllForAdmin: async () => {
         const [rows] = await db.query('SELECT * FROM products ORDER BY id DESC');
         return await getProductsWithExtras(rows);

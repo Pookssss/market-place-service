@@ -44,6 +44,19 @@ const CategoryAttribute = {
         return rows[0];
     },
 
+    // หา Attribute ด้วยชื่อ (สำหรับ search filter)
+    findByName: async (name, categoryId = null) => {
+        let sql = 'SELECT * FROM category_attributes WHERE name = ?';
+        const params = [name];
+        if (categoryId) {
+            sql += ' AND category_id = ?';
+            params.push(categoryId);
+        }
+        sql += ' LIMIT 1';
+        const [rows] = await db.query(sql, params);
+        return rows[0];
+    },
+
     create: async (data) => {
         const { category_id, name, input_type, is_required, sort_order } = data;
         const uuid = crypto.randomUUID();

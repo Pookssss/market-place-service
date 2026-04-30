@@ -37,6 +37,67 @@ const getAllProducts = async (req, res) => {
     }
 };
 
+const searchProducts = async (req, res) => {
+    try {
+        const { q, category, min_price, max_price, store, sort, page, limit } = req.query;
+
+        // แปลง category UUID → internal id + path
+        let categoryId = null;
+        let categoryPath = null;
+        if (category) {
+            const Category = require('../models/categoryModel');
+            const cat = await Category.findByUuid(category);
+            if (cat) {
+                categoryId = cat.id;
+                categoryPath = cat.path;
+            }
+        }
+
+        // แปลง store UUID → internal id
+        let storeId = null;
+        if (store) {
+            const storeRecord = await Store.findByUuid(store);
+            if (storeRecord) storeId = storeRecord.id;
+        }
+
+        // ดึง attribute filters (attr_Brand=Nike, attr_Size=M → { internalId: value })
+        const attributes = {};
+        const CategoryAttribute = require('../models/categoryAttributeModel');
+        for (const [key, value] of Object.entries(req.query)) {
+            if (key.startsWith('attr_') && value) {
+                const attrName = key.substring(5); // ตัด 'attr_' ออก
+                // หา internal id ของ attribute จากชื่อ
+                const attr = await CategoryAttribute.findByName(attrName, categoryId);
+                if (attr) {
+                    attributes[attr.id] = value;
+                }
+            }
+        }
+
+        const result = await Product.search({
+            q,
+            category_id: categoryId,
+            category_path: categoryPath,
+            min_price,
+            max_price,
+            store_id: storeId,
+            attributes: Object.keys(attributes).length > 0 ? attributes : null,
+            sort,
+            page,
+            limit
+        });
+
+        res.status(200).json({
+            success: true,
+            data: result.products.map(formatProductResponse),
+            pagination: result.pagination
+        });
+    } catch (error) {
+        console.error('Error searching products:', error);
+        res.status(500).json({ success: false, message: 'Server Error' });
+    }
+};
+
 const getProductById = async (req, res) => {
     try {
         const { id } = req.params; // UUID
@@ -218,6 +279,7 @@ const deleteProduct = async (req, res) => {
 
 module.exports = {
     getAllProducts,
+    searchProducts,
     getProductById,
     getMyProducts,
     createProduct,
