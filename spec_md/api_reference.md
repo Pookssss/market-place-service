@@ -67,13 +67,17 @@
 
 ### POST `/stores` — สร้างร้านค้า
 - **Auth:** 🔒 Seller
+- **Content-Type:** `multipart/form-data`
 - **Body:**
-```json
-{ "name": "My Shop", "description": "ร้านขายของ" }
-```
+| Key | Type | Required | คำอธิบาย |
+|---|---|---|---|
+| `name` | Text | ✅ | ชื่อร้านค้า |
+| `description` | Text | ❌ | คำอธิบายร้านค้า |
+| `profile_image` | File | ❌ | รูปโปรไฟล์ร้าน (Logo) |
+| `cover_image` | File | ❌ | รูปปก (Cover/Banner) |
 - **Response:**
 ```json
-{ "success": true, "data": { "id": "uuid", "name": "My Shop" } }
+{ "success": true, "data": { "id": "uuid", "name": "My Shop", "profile_image_url": "...", "cover_image_url": "..." } }
 ```
 
 ---
@@ -84,7 +88,7 @@
 ```json
 {
     "success": true,
-    "data": { "id": "uuid", "name": "My Shop", "description": "...", "status": "active" }
+    "data": { "id": "uuid", "name": "My Shop", "description": "...", "status": "active", "profile_image_url": "...", "cover_image_url": "..." }
 }
 ```
 
@@ -92,9 +96,46 @@
 
 ### PUT `/stores/:uuid` — อัปเดตร้าน
 - **Auth:** 🔒 Seller / Admin
-- **Body:**
+- **Content-Type:** `multipart/form-data`
+- **Body:** เหมือนตอนสร้าง (POST)
+
+---
+
+### GET `/stores/:uuid` — ดึงข้อมูลหน้าร้าน (Public)
+- **Auth:** ไม่ต้อง (ทุกคนดูได้)
+- **Response:**
 ```json
-{ "name": "New Name", "description": "New Description" }
+{
+    "success": true,
+    "data": { "id": "uuid", "name": "My Shop", "description": "...", "profile_image_url": "...", "cover_image_url": "..." }
+}
+```
+
+---
+
+### GET `/stores/:uuid/products` — ดึงข้อมูลร้านพร้อมสินค้าแบบย่อ (Public)
+- **Auth:** ไม่ต้อง (ทุกคนดูได้)
+- **Response:**
+```json
+{
+    "success": true,
+    "data": { 
+        "id": "uuid", 
+        "name": "My Shop", 
+        "description": "...", 
+        "profile_image_url": "...", 
+        "cover_image_url": "...",
+        "products": [
+            {
+                "id": "uuid-product",
+                "name": "iPhone 15",
+                "price": "48900.00",
+                "image_url": "filename.jpg",
+                "category": { "id": "uuid", "name": "Smartphones" }
+            }
+        ]
+    }
+}
 ```
 
 ---
@@ -117,6 +158,11 @@
             "status": "active",
             "image_url": "filename.jpg",
             "created_at": "...",
+            "store": { 
+                "id": "uuid-of-store", 
+                "name": "My Shop", 
+                "profile_image_url": "..." 
+            },
             "category": { "id": "uuid", "name": "Smartphones" },
             "attributes": [
                 { "id": "uuid", "name": "Brand", "value": "Apple" }

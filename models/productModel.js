@@ -64,12 +64,35 @@ const attachAttributesToProducts = async (products) => {
     return products;
 };
 
+const attachStoreToProducts = async (products) => {
+    if (products.length === 0) return products;
+    const storeIds = [...new Set(products.map(p => p.store_id).filter(Boolean))];
+    if (storeIds.length === 0) {
+        products.forEach(p => { p.store = null; });
+        return products;
+    }
+    const [stores] = await db.query('SELECT * FROM stores WHERE id IN (?)', [storeIds]);
+    const storeMap = {};
+    stores.forEach(s => { 
+        storeMap[s.id] = { 
+            id: s.uuid, 
+            name: s.name,
+            profile_image_url: s.profile_image_url 
+        }; 
+    });
+    products.forEach(product => {
+        product.store = product.store_id ? (storeMap[product.store_id] || null) : null;
+    });
+    return products;
+};
+
 const getProductsWithExtras = async (rows) => {
     if (rows.length === 0) return rows;
     let products = await attachVariantsToProducts(rows);
     products = await attachImagesToProducts(products);
     products = await attachCategoryToProducts(products);
     products = await attachAttributesToProducts(products);
+    products = await attachStoreToProducts(products);
     return products;
 };
 

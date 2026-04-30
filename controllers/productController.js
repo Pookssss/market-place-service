@@ -13,6 +13,7 @@ const formatProductResponse = (product) => {
         status: product.status,
         image_url: product.image_url,
         created_at: product.created_at,
+        store: product.store || null,
         category: product.category || null,
         attributes: product.attributes || [],
         images: product.images ? product.images : [],
@@ -167,6 +168,19 @@ const createProduct = async (req, res) => {
 
         let imagesData = req.files.map(file => file.filename);
         image_url = imagesData[0]; // Set the first image as primary fallback
+
+        // --- Map variant images if image_index is provided ---
+        if (variants.length > 0) {
+            variants = variants.map(variant => {
+                if (variant.image_index !== undefined && variant.image_index !== null) {
+                    const index = parseInt(variant.image_index);
+                    if (!isNaN(index) && index >= 0 && index < imagesData.length) {
+                        variant.image_url = imagesData[index];
+                    }
+                }
+                return variant;
+            });
+        }
 
         if (!name || price === undefined || price === null) {
             return res.status(400).json({ success: false, message: 'Name and price are required' });
