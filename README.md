@@ -125,16 +125,30 @@ USE ecommerce_db;
 
 จากนั้นรันไฟล์ SQL ตามลำดับ:
 
-1. `database/schema_v2.sql` — สร้างตารางหลัก + Seed Roles/Permissions
-2. `database/phase4_variants.sql` — ระบบ Variants
-3. `database/phase5_categories.sql` — หมวดหมู่ลำดับชั้น
-4. `database/phase5_1_category_path.sql` — Level + Path + Index
-5. `database/phase5_2_category_attributes.sql` — ระบบ Attributes
+1. `database/schema_v2.sql` — โครงสร้างหลัก (Dual-ID + RBAC + Store/Product/Cart/Order)
+2. `database/phase4_variants.sql` — ระบบ Variants + cart/order ที่รองรับ variant
+3. `database/phase5_categories.sql` — หมวดหมู่ลำดับชั้น (parent_id + image_url)
+4. `database/phase5_1_category_path.sql` — เพิ่ม level/path และ index สำหรับ query แบบ tree
+5. `database/phase5_2_category_attributes.sql` — ระบบ Category Attributes + product attribute values
+6. `database/phase5_3_screen_size.sql` — (Optional) seed ค่าหน้าจอของ Smartphones
+7. `database/phase6_search_indexes.sql` — (Recommended) index สำหรับ search/filter ให้เร็วขึ้น
+8. `database/phase7_store_profiles.sql` — เพิ่ม profile_image_url/cover_image_url สำหรับร้านค้า
 
-```sql
--- อย่าลืมรันคำสั่งนี้ด้วย (เพิ่ม image_url ให้ Variant)
-ALTER TABLE product_variants ADD COLUMN IF NOT EXISTS image_url VARCHAR(500) NULL AFTER stock;
-```
+> หมายเหตุ: สำหรับการติดตั้งใหม่บน server ให้ใช้ลำดับด้านบนเท่านั้น
+
+#### SQL File Status (ใช้ / ไม่ใช้)
+
+- `database/schema_v2.sql` : ใช้ (ฐานหลัก)
+- `database/phase4_variants.sql` : ใช้
+- `database/phase5_categories.sql` : ใช้
+- `database/phase5_1_category_path.sql` : ใช้
+- `database/phase5_2_category_attributes.sql` : ใช้
+- `database/phase5_3_screen_size.sql` : ใช้แบบ Optional (เป็น data patch)
+- `database/phase6_search_indexes.sql` : ใช้แบบ Recommended (ด้าน performance)
+- `database/phase7_store_profiles.sql` : ใช้ (จำเป็นถ้าต้องอัปโหลดรูปโปรไฟล์/ปกร้าน)
+- `database/phase1_auth.sql` : ไม่ใช้ (schema เก่าก่อนรวม v2)
+- `database/phase2_store_product.sql` : ไม่ใช้ (schema เก่าก่อนรวม v2)
+- `database/phase3_cart_order.sql` : ไม่ใช้ (schema เก่าก่อนรวม v2)
 
 ### 4. Start Server
 

@@ -41,6 +41,11 @@ const createStore = async (req, res) => {
         });
     } catch (error) {
         console.error('Error creating store:', error);
+
+        if (error.code === 'STORE_IMAGE_SCHEMA_MISSING') {
+            return res.status(500).json({ success: false, message: error.message });
+        }
+
         res.status(500).json({ success: false, message: 'Server Error' });
     }
 };
@@ -61,8 +66,8 @@ const getMyStore = async (req, res) => {
                 name: store.name,
                 description: store.description,
                 status: store.status,
-                profile_image_url: store.profile_image_url,
-                cover_image_url: store.cover_image_url
+                profile_image_url: store.profile_image_url ?? null,
+                cover_image_url: store.cover_image_url ?? null
             } 
         });
     } catch (error) {
@@ -86,8 +91,8 @@ const getPublicStore = async (req, res) => {
                 id: store.uuid,
                 name: store.name,
                 description: store.description,
-                profile_image_url: store.profile_image_url,
-                cover_image_url: store.cover_image_url
+                profile_image_url: store.profile_image_url ?? null,
+                cover_image_url: store.cover_image_url ?? null
             } 
         });
     } catch (error) {
@@ -124,8 +129,8 @@ const getPublicStoreWithProducts = async (req, res) => {
                 id: store.uuid,
                 name: store.name,
                 description: store.description,
-                profile_image_url: store.profile_image_url,
-                cover_image_url: store.cover_image_url,
+                profile_image_url: store.profile_image_url ?? null,
+                cover_image_url: store.cover_image_url ?? null,
                 products: productCards
             } 
         });
@@ -181,6 +186,11 @@ const updateStore = async (req, res) => {
         });
     } catch (error) {
         console.error('Error updating store:', error);
+
+        if (error.code === 'STORE_IMAGE_SCHEMA_MISSING') {
+            return res.status(500).json({ success: false, message: error.message });
+        }
+
         res.status(500).json({ success: false, message: 'Server Error' });
     }
 };
